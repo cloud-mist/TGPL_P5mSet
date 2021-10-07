@@ -236,3 +236,265 @@ func eaDup(strings []string) []string {
 
 [Process exited 0]
 ```
+
+## 4.8 
+
+> Target
+
+- Modify `charcount` to count letters, digits, and so on.
+
+> Code
+
+```go
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"io"
+	"os"
+	"unicode"
+	"unicode/utf8"
+)
+
+func main() {
+	counts := make(map[rune]int)    // unicode字符数
+	invalid := 0                    // 不合法的utf8字符
+	var utflen [utf8.UTFMax + 1]int // utf8编码长度
+
+	in := bufio.NewReader(os.Stdin)
+
+	var letter, number, other int
+	for {
+		r, n, err := in.ReadRune() // 返回3个值。解码的rune字符的值，字符UTF-8编码后的长度，和一个错误值
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "charcount: %v/n", err)
+			os.Exit(1)
+		}
+
+		// 不合法字符的统计
+		if r == unicode.ReplacementChar && n == 1 {
+			invalid++
+			continue
+		}
+		counts[r]++
+		utflen[n]++
+
+		if unicode.IsDigit(r) {
+			number++
+		} else if unicode.IsLetter(r) {
+			letter++
+		} else {
+			other++
+		}
+	}
+
+	// 输出不同字符的个数
+	fmt.Printf("rune\tcount\n")
+	for c, n := range counts {
+		fmt.Printf("%q\t%d\n", c, n)
+	}
+
+	// 输出各个长度的有多少个
+	fmt.Print("\nlen\tcount\n")
+	for i, n := range utflen {
+		if i > 0 {
+			fmt.Printf("%d\t%d\n", i, n)
+		}
+	}
+
+	// 输出invalid
+	if invalid > 0 {
+		fmt.Printf("\n%d invalid UTF-8 characters\n", invalid)
+	}
+
+	// E4.8 输出不同类型的
+	fmt.Printf("\nletter\tdigit\tother\n")
+	fmt.Printf("%d\t%d\t%d\n", letter, number, other)
+}
+```
+
+> Run & Result
+
+```bash
+➜  charcount (master) ✗ go run .
+world
+123
+rune    count
+'w'     1
+'d'     1
+'1'     1
+'2'     1
+'o'     1
+'r'     1
+'l'     1
+'\n'    2
+'3'     1
+
+len     count
+1       10
+2       0
+3       0
+4       0
+
+letter  digit   other
+5       3       2
+```
+
+## 4.9
+
+> Target
+
+- Report the frequency of each word in an input text file.
+
+> Code
+
+```go
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+)
+
+func main() {
+	counts := make(map[string]int)
+
+	// input
+	input := bufio.NewScanner(os.Stdin)
+	input.Split(bufio.ScanWords)
+
+	// map
+	for input.Scan() {
+		counts[input.Text()]++
+	}
+
+	// output
+	fmt.Printf("string\tcounts\n")
+	for k, v := range counts {
+		fmt.Printf("%s\t%d\n", k, v)
+	}
+}
+```
+
+> Run & Result
+
+```bash
+➜  E9 (master) ✗ go run .
+aaa bbb ccc 123 213321 tnes a ntes zz 43
+a zz aaa
+string  counts
+tnes    1
+zz      2
+ccc     1
+123     1
+213321  1
+a       2
+ntes    1
+43      1
+aaa     2
+bbb     1
+```
+
+## 4.13 
+
+> Target
+
+> Code
+```go
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
+)
+
+type movieRes struct {
+	Title, Year, Released, Runtime, Genre, Director, Language, Country, Awards, Poster, Metascore string
+}
+
+func main() {
+	// 注意，这里要换成你的apikey,并删除`尖括号`
+	preUrl := "http://www.omdbapi.com/?apikey=<your apikey>&t="
+	if len(os.Args) < 3 {
+		log.Fatalf("\nError!\nExample:go run . -t/-d <film name>")
+	}
+	url := preUrl + os.Args[2]
+
+	mr := seach(url)
+
+	if os.Args[1] == "-s" {
+		if mr.Title != "" {
+			fmt.Printf("%-10s  %s\n", "TAGS", "RES")
+			fmt.Printf("-----------------------\n")
+			fmt.Printf("%-10s: %s\n", "Title", mr.Title)
+			fmt.Printf("%-10s: %s\n", "Year", mr.Year)
+			fmt.Printf("%-10s: %s\n", "Runtime", mr.Runtime)
+			fmt.Printf("%-10s: %s\n", "Genre", mr.Genre)
+			fmt.Printf("%-10s: %s\n", "Director", mr.Director)
+			fmt.Printf("%-10s: %s\n", "Awards", mr.Awards)
+			fmt.Printf("%-10s: %s\n", "Metascore", mr.Metascore)
+		} else {
+			fmt.Printf("抱歉，没有找到您要的电影🥴\n")
+		}
+	} else if os.Args[1] == "-d" {
+		if mr.Poster != "" {
+			curl(mr.Poster, os.Args[2]+".jpg")
+			fmt.Printf("Download Successd!\nFile Name is %s\n", os.Args[2]+".jpg")
+		} else {
+			fmt.Printf("抱歉，没有找到您要的电影🥴\n")
+		}
+	} else {
+		log.Fatalf("\nError!\nExample:go run . -t/-d <film name>")
+	}
+
+}
+
+// parse
+func seach(url string) movieRes {
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer resp.Body.Close()
+
+	// 将json响应解码到结构类型
+	var mr movieRes
+	err = json.NewDecoder(resp.Body).Decode(&mr)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	return mr
+}
+
+// download
+func curl(url string, fileName string) {
+	r, err := http.Get(url)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer r.Body.Close()
+
+	f, err := os.Create(fileName)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer f.Close()
+
+	io.Copy(f, r.Body)
+}
+```
+
+> Run & Result
+
+
+[Result Video](../_files/ch4/e4-13.mp4 ':include :type=iframe width=100% height=540px loading:lazy sandbox')

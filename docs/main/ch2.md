@@ -99,5 +99,4 @@ func (k Kel) String() {
 }
 ```
 
-## 2.2
 

@@ -496,5 +496,4 @@ func curl(url string, fileName string) {
 
 > Run & Result
 
-
-[Result Video](../_files/ch4/e4-13.mp4 ':include :type=iframe width=100% height=540px loading:lazy sandbox')
+[Result Video](../_files/ch4/e4-13.mp4 ':include  :type=iframe width=100% height=540px loading:lazy sandbox')

@@ -29,7 +29,7 @@ func Vt(links []string, n *html.Node) []string {
 }
 ```
 
-> Res
+> Run&Result
 ```bash
 ➜  findlinks1 (master) ✗ go run . < html_input
 https://support.eji.org/give/153413/#!/donation/checkout
@@ -171,4 +171,171 @@ func textNode(n *html.Node) {
 - Download: [e3Result.txt](../_files/ch5/e3Result.txt ':ignore')
 
 
+
+# 5.4
+
+> Target
+- Extend the `visit` func so that it extracts other kinds of links from the document, such as images, scripts, and style sheets.
+
+> Code
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+	"os"
+
+	"golang.org/x/net/html"
+)
+
+func main() {
+	tag = map[string]bool{"a": true, "img": true, "script": true, "href": true, "src": true}
+
+	doc, err := html.Parse(os.Stdin)
+	if err != nil {
+		log.Fatalf("E4:%s", err)
+	}
+
+	for _, link := range Vt(nil, doc) {
+		fmt.Println(link)
+	}
+
+}
+
+var tag map[string]bool
+
+func Vt(links []string, n *html.Node) []string {
+	if n.Type == html.ElementNode && tag[n.Data] {
+		for _, a := range n.Attr {
+			if tag[a.Key] {
+				links = append(links, a.Val)
+			}
+		}
+	}
+
+	if n.FirstChild != nil {
+		links = Vt(links, n.FirstChild)
+	}
+	if n.NextSibling != nil {
+		links = Vt(links, n.NextSibling)
+	}
+
+	return links
+}
+```
+
+> Run&Result
+```bash
+➜  E4 (master) ✗ go run . < ../findlinks1/html_input
+/lib/godoc/jquery.js
+/lib/godoc/playground.js
+/lib/godoc/godocs.js
+https://support.eji.org/give/153413/#!/donation/checkout
+/
+/lib/godoc/images/go-logo-blue.svg
+/doc/
+/pkg/
+/project/
+/help/
+/blog/
+https://play.golang.org/
+/dl/
+/lib/godoc/images/cloud-download.svg
+https://tour.golang.org/
+https://blog.golang.org/
+/lib/godoc/images/footer-gopher.jpg
+/doc/copyright.html
+/doc/tos.html
+http://www.google.com/intl/en/policies/privacy/
+http://golang.org/issues/new?title=x/website:
+https://google.com
+```
+- _备注_: 未添加`style sheets`, 因为不清楚这个。
+
+# 5.5
+
+> Target
+- Implement `countWordsAndImgs` (See Ex4.9 for word-splitting)
+
+> Code
+```go
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"net/http"
+	"strings"
+
+	"golang.org/x/net/html"
+)
+
+func main() {
+	words, images, _ := count("https://www.zhihu.com")
+	fmt.Printf("words: %d\timages: %d\n", words, images)
+}
+
+func count(url string) (words, images int, err error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return // bare return
+	}
+
+	doc, err := html.Parse(resp.Body)
+	if err != nil {
+		err = fmt.Errorf("parsing HTML: %s", err)
+	}
+	defer resp.Body.Close()
+
+	words, images = countWordsAndImgs(doc)
+	return
+}
+
+func countWordsAndImgs(n *html.Node) (int, int) {
+	textNode(n) // 利用E3的函数,得到所有文本元素
+	calcImg(n)  // 利用E2的函数，得到img的个数
+
+	// 对文本元素计数
+	words := 0
+	input := bufio.NewScanner(strings.NewReader(resWords))
+	input.Split(bufio.ScanWords)
+	for input.Scan() {
+		words++
+	}
+	return words, resImgs
+}
+
+var resWords string
+
+func textNode(n *html.Node) {
+	if n.Type == html.TextNode {
+		resWords = resWords + " " + n.Data
+	}
+
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if c.Data != "script" && c.Data != "style" {
+			textNode(c)
+		}
+	}
+}
+
+var resImgs int
+
+func calcImg(n *html.Node) {
+	if n.Type == html.ElementNode {
+		resImgs++
+	}
+
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		calcImg(c)
+	}
+}
+```
+
+> Run&Result
+```bash
+➜  E5 (master) ✗ go run .
+words: 60       images: 152
+```
 

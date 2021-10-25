@@ -272,7 +272,7 @@ import (
 )
 
 func main() {
-	words, images, _ := count("https://www.zhihu.com")
+	words, images, _ := count("https://www.gopl.io")
 	fmt.Printf("words: %d\timages: %d\n", words, images)
 }
 
@@ -323,7 +323,7 @@ func textNode(n *html.Node) {
 var resImgs int
 
 func calcImg(n *html.Node) {
-	if n.Type == html.ElementNode {
+	if n.Type == html.ElementNode && n.Data == "img" {
 		resImgs++
 	}
 
@@ -336,6 +336,6 @@ func calcImg(n *html.Node) {
 > Run&Result
 ```bash
 ➜  E5 (master) ✗ go run .
-words: 60       images: 152
+words: 198      images: 4
 ```
 
